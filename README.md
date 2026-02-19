@@ -1,2 +1,2 @@
 # DiZ623.github.io
-private phone number
+private web app
