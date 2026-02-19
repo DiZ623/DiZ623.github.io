@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <!-- Viewport 设置：适配 iPhone 刘海屏，禁止缩放 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <!-- PWA 配置引入 -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- iOS 专用设置 (Safari) -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="医院电话簿">
+    <meta name="format-detection" content="telephone=no">
+    <!-- iOS 图标 (建议添加同名图片文件) -->
+    <link rel="apple-touch-icon" href="icon-192.png">
+    
+    <title>医院内部电话簿</title>
+    
+    <!-- 引入 React 和 Tailwind CSS -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 引入图标库 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; 
+            background-color: #f8fafc; 
+            color: #1e293b;
+            -webkit-font-smoothing: antialiased;
+            -webkit-tap-highlight-color: transparent;
+            min-height: 100vh;
+        }
+        
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .animate-fade-in { animation: fadeIn 0.3s ease-out; }
+        .animate-slide-up { animation: slideUp 0.3s ease-out; }
+        
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .glass-header {
+            background: rgba(248, 250, 252, 0.85);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border-bottom: 1px solid rgba(0,0,0,0.05);
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            padding-top: env(safe-area-inset-top); 
+        }
+
+        .safe-bottom {
+            padding-bottom: calc(20px + env(safe-area-inset-bottom));
+        }
+
+        .active-scale { transition: transform 0.1s cubic-bezier(0.4, 0, 0.2, 1); }
+        .active-scale:active { transform: scale(0.97); }
+    </style>
+</head>
+<body class="antialiased">
+
+<div id="root"></div>
+
+<script type="text/babel">
+    // ================= 数据区域 =================
+    const phoneData = [
+        { "source": "行政职能", "dept": "党委", "loc": "办公室", "tel": "83120" },
+        { "source": "行政职能", "dept": "党委", "loc": "办公室", "tel": "83121" },
+        { "source": "行政职能", "dept": "党委", "loc": "办公室", "tel": "83163" },
+        { "source": "行政职能", "dept": "党委", "loc": "伦理办公室", "tel": "83015" },
+        { "source": "行政职能", "dept": "党委", "loc": "伦理办公室2", "tel": "85506" },
+        { "source": "行政职能", "dept": "党委", "loc": "思政办公室", "tel": "83097" },
+        { "source": "行政职能", "dept": "院办", "loc": "主任室", "tel": "83020" },
+        { "source": "行政职能", "dept": "院办", "loc": "办公室", "tel": "83021" },
+        { "source": "行政职能", "dept": "院办", "loc": "办公室", "tel": "83022" },
+        { "source": "行政职能", "dept": "院办", "loc": "办公室", "tel": "83023" },
+        { "source": "行政职能", "dept": "院办", "loc": "办公室", "tel": "83066" },
+        { "source": "行政职能", "dept": "宣传部", "loc": "主任室", "tel": "83123" },
+        { "source": "行政职能", "dept": "宣传部", "loc": "办公室", "tel": "83122" },
+        { "source": "行政职能", "dept": "宣传部", "loc": "办公室", "tel": "83164" },
+        { "source": "行政职能", "dept": "人力资源部", "loc": "主任室", "tel": "83070" },
+        { "source": "行政职能", "dept": "人力资源部", "loc": "办公室", "tel": "83071" },
+        { "source": "行政职能", "dept": "人力资源部", "loc": "办公室", "tel": "83072" },
+        { "source": "行政职能", "dept": "人力资源部", "loc": "办公室", "tel": "83073" },
+        { "source": "行政职能", "dept": "人力资源部", "loc": "办公室", "tel": "83074" },
+        { "source": "行政职能", "dept": "人力资源部", "loc": "办公室", "tel": "83075" },
+        { "source": "行政职能", "dept": "人力资源部", "loc": "办公室", "tel": "83097" },
+        { "source": "行政职能", "dept": "人力资源部", "loc": "办公室", "tel": "87200" },
+        { "source": "行政职能", "dept": "财务", "loc": "主任室", "tel": "83200" },
+        { "source": "行政职能", "dept": "财务", "loc": "办公室", "tel": "83208" },
+        { "source": "行政职能", "dept": "财务", "loc": "办公室", "tel": "83201" },
+        { "source": "行政职能", "dept": "财务", "loc": "出纳室", "tel": "83202" },
+        { "source": "行政职能", "dept": "财务", "loc": "出纳室", "tel": "83203" },
+        { "source": "行政职能", "dept": "财务", "loc": "出纳室", "tel": "83205" },
+        { "source": "行政职能", "dept": "财务", "loc": "出纳室", "tel": "83206" },
+        { "source": "行政职能", "dept": "财务", "loc": "出纳室", "tel": "83207" },
+        { "source": "行政职能", "dept": "财务", "loc": "出纳室", "tel": "83211" },
+        { "source": "行政职能", "dept": "HOPE", "loc": "办公室", "tel": "83110" },
+        { "source": "行政职能", "dept": "HOPE", "loc": "办公室", "tel": "83111" },
+        { "source": "行政职能", "dept": "纪检审", "loc": "主任室", "tel": "83125" },
+        { "source": "行政职能", "dept": "纪检审", "loc": "办公室", "tel": "83124" },
+        { "source": "行政职能", "dept": "纪检审", "loc": "办公室", "tel": "83126" },
+        { "source": "行政职能", "dept": "社工部", "loc": "主任室", "tel": "83101" },
+        { "source": "行政职能", "dept": "社工部", "loc": "心脏办公室", "tel": "86858" },
+        { "source": "行政职能", "dept": "社工部", "loc": "血液办公室", "tel": "85999" },
+        { "source": "行政职能", "dept": "社工部", "loc": "办公室", "tel": "83117" },
+        { "source": "行政职能", "dept": "工会", "loc": "主任室", "tel": "83170" },
+        { "source": "行政职能", "dept": "工会", "loc": "办公室", "tel": "83172" },
+        { "source": "行政职能", "dept": "工会", "loc": "办公室", "tel": "83173" },
+        { "source": "行政职能", "dept": "工会", "loc": "办公室", "tel": "82072" },
+        { "source": "行政职能", "dept": "科研", "loc": "主任室", "tel": "83080" },
+        { "source": "行政职能", "dept": "科研", "loc": "办公室", "tel": "83081" },
+        { "source": "行政职能", "dept": "科研", "loc": "办公室", "tel": "83083" },
+        { "source": "行政职能", "dept": "科研", "loc": "办公室", "tel": "83085" },
+        { "source": "行政职能", "dept": "绩效办", "loc": "主任室", "tel": "83069" },
+        { "source": "行政职能", "dept": "绩效办", "loc": "办公室", "tel": "83076" },
+        { "source": "行政职能", "dept": "绩效办", "loc": "办公室", "tel": "83067" },
+        { "source": "行政职能", "dept": "绩效办", "loc": "办公室", "tel": "83093" },
+        { "source": "行政职能", "dept": "质控办", "loc": "主任室", "tel": "83060" },
+        { "source": "行政职能", "dept": "质控办", "loc": "办公室", "tel": "83061" },
+        { "source": "行政职能", "dept": "质控办", "loc": "办公室", "tel": "83062" },
+        { "source": "行政职能", "dept": "医务部", "loc": "主任室", "tel": "83048" },
+        { "source": "行政职能", "dept": "门急诊办", "loc": "主任室", "tel": "83058" },
+        { "source": "行政职能", "dept": "护理部", "loc": "主任室", "tel": "83008" },
+        { "source": "行政职能", "dept": "院感办", "loc": "主任室", "tel": "83028" },
+        { "source": "行政职能", "dept": "教学", "loc": "主任室", "tel": "83030" },
+        { "source": "行政职能", "dept": "信息", "loc": "主任室", "tel": "83090" },
+        { "source": "门急诊", "dept": "门诊检验", "loc": "标本收发处", "tel": "87039" },
+        { "source": "门急诊", "dept": "门诊检验", "loc": "抽血中心", "tel": "87040" },
+        { "source": "门急诊", "dept": "门诊检验", "loc": "门诊检验室", "tel": "87041" },
+        { "source": "门急诊", "dept": "门诊检验", "loc": "门诊生化", "tel": "87042" },
+        { "source": "门急诊", "dept": "门诊检验", "loc": "门诊检验咨询", "tel": "87043" },
+        { "source": "门急诊", "dept": "患者服务中心", "loc": "114预约", "tel": "87063" },
+        { "source": "门急诊", "dept": "患者服务中心", "loc": "导医通预约", "tel": "87064" },
+        { "source": "门急诊", "dept": "患者服务中心", "loc": "咨询台", "tel": "88010" },
+        { "source": "门急诊", "dept": "患者服务中心", "loc": "便民服务", "tel": "87067" },
+        { "source": "门急诊", "dept": "门诊收费（1楼）", "loc": "收费窗口", "tel": "87058" },
+        { "source": "门急诊", "dept": "门诊收费（1楼）", "loc": "收费窗口", "tel": "87059" },
+        { "source": "门急诊", "dept": "门诊收费（1楼）", "loc": "收费窗口", "tel": "87060" },
+        { "source": "门急诊", "dept": "门诊收费（1楼）", "loc": "办公室", "tel": "87061" },
+        { "source": "门急诊", "dept": "药房", "loc": "门诊药房1", "tel": "87068" },
+        { "source": "门急诊", "dept": "药房", "loc": "门诊药房2", "tel": "87069" },
+        { "source": "门急诊", "dept": "药房", "loc": "血液药房", "tel": "82011" },
+        { "source": "门急诊", "dept": "药房", "loc": "病房药房", "tel": "85253" },
+        { "source": "门急诊", "dept": "药房", "loc": "配置中心", "tel": "85231" },
+        { "source": "门急诊", "dept": "药房", "loc": "血液收费", "tel": "82010" },
+        { "source": "门急诊", "dept": "门急诊输液", "loc": "打针室", "tel": "86002" },
+        { "source": "门急诊", "dept": "门急诊输液", "loc": "输液吧台", "tel": "86004" },
+        { "source": "门急诊", "dept": "门急诊输液", "loc": "隔离室", "tel": "89231" },
+        { "source": "门急诊", "dept": "门急诊输液", "loc": "门急诊药房配置室1", "tel": "89232" },
+        { "source": "门急诊", "dept": "门急诊输液", "loc": "门急诊药房配置室2", "tel": "89233" },
+        { "source": "门急诊", "dept": "非发热急诊", "loc": "急诊预检台", "tel": "86007" },
+        { "source": "门急诊", "dept": "非发热急诊", "loc": "急诊服务台", "tel": "86008" },
+        { "source": "门急诊", "dept": "非发热急诊", "loc": "非发热外科诊疗室", "tel": "89248" },
+        { "source": "门急诊", "dept": "非发热急诊", "loc": "非发热骨科诊疗室", "tel": "89249" },
+        { "source": "门急诊", "dept": "非发热急诊", "loc": "主任室", "tel": "86000" },
+        { "source": "门急诊", "dept": "便民服务（2楼）", "loc": "便民服务", "tel": "87066" },
+        { "source": "门急诊", "dept": "便民服务（2楼）", "loc": "特诊药房", "tel": "87916" },
+        { "source": "门急诊", "dept": "门诊收费（2楼）", "loc": "收费窗口", "tel": "87118" },
+        { "source": "门急诊", "dept": "门诊收费（2楼）", "loc": "收费窗口", "tel": "87119" },
+        { "source": "门急诊", "dept": "门诊收费（2楼）", "loc": "特诊收费", "tel": "87914" },
+        { "source": "门急诊", "dept": "门诊收费（2楼）", "loc": "日间病房收费", "tel": "87045" },
+        { "source": "门急诊", "dept": "日间病房", "loc": "日间病房1", "tel": "87055" },
+        { "source": "门急诊", "dept": "日间病房", "loc": "日间病房2", "tel": "87056" },
+        { "source": "门急诊", "dept": "日间病房", "loc": "医生办公室", "tel": "87046" },
+        { "source": "门急诊", "dept": "日间病房", "loc": "输液区", "tel": "86001" },
+        { "source": "手术&医技", "dept": "放射", "loc": "ECT", "tel": "85007" },
+        { "source": "手术&医技", "dept": "放射", "loc": "CT2", "tel": "85020" },
+        { "source": "手术&医技", "dept": "放射", "loc": "CT1", "tel": "85006" },
+        { "source": "手术&医技", "dept": "放射", "loc": "B超室3", "tel": "85019" },
+        { "source": "手术&医技", "dept": "放射", "loc": "放射科苏醒室", "tel": "85011" },
+        { "source": "手术&医技", "dept": "放射", "loc": "核磁共振室二", "tel": "85012" },
+        { "source": "手术&医技", "dept": "放射", "loc": "影像诊断中心主任办公室", "tel": "85000" },
+        { "source": "手术&医技", "dept": "放射", "loc": "核磁共振操作间", "tel": "85010" },
+        { "source": "手术&医技", "dept": "检验", "loc": "生化实验室", "tel": "85135" },
+        { "source": "手术&医技", "dept": "检验", "loc": "急诊检验", "tel": "85110" },
+        { "source": "手术&医技", "dept": "检验", "loc": "门诊标本收发处", "tel": "87039" },
+        { "source": "手术&医技", "dept": "检验", "loc": "门诊检验咨询", "tel": "87043" },
+        { "source": "手术&医技", "dept": "检验", "loc": "实验诊断中心办公室", "tel": "85101" },
+        { "source": "手术&医技", "dept": "检验", "loc": "门诊生化", "tel": "87042" },
+        { "source": "手术&医技", "dept": "检验", "loc": "实验诊断中心主任办公室", "tel": "85100" },
+        { "source": "手术&医技", "dept": "检验", "loc": "微生物实验室", "tel": "85139" },
+        { "source": "手术&医技", "dept": "手术室", "loc": "苏醒室(PACU)", "tel": "87300" },
+        { "source": "手术&医技", "dept": "手术室", "loc": "麻醉冲配室", "tel": "87316" },
+        { "source": "手术&医技", "dept": "手术室", "loc": "无菌敷料及器械库房", "tel": "87340" },
+        { "source": "手术&医技", "dept": "手术室", "loc": "工程师办公室", "tel": "87319" },
+        { "source": "手术&医技", "dept": "手术室", "loc": "麻醉主任办公室(行政)", "tel": "87320" },
+        { "source": "手术&医技", "dept": "手术室", "loc": "麻醉主任办公室 (业务)", "tel": "87323" },
+        { "source": "手术&医技", "dept": "手术室", "loc": "麻醉医生大办公室", "tel": "87321" },
+        { "source": "手术&医技", "dept": "手术室", "loc": "资料室", "tel": "87324" },
+        { "source": "手术&医技", "dept": "心脑电图", "loc": "胃肠镜室", "tel": "85014" },
+        { "source": "手术&医技", "dept": "心脑电图", "loc": "胃镜室", "tel": "85710" },
+        { "source": "手术&医技", "dept": "心脑电图", "loc": "脑电图室二", "tel": "85033" },
+        { "source": "手术&医技", "dept": "心脑电图", "loc": "脑电图室一", "tel": "85032" },
+        { "source": "手术&医技", "dept": "心脑电图", "loc": "心内运动室", "tel": "85021" },
+        { "source": "手术&医技", "dept": "心脑电图", "loc": "心功能室", "tel": "85025" },
+        { "source": "手术&医技", "dept": "心脑电图", "loc": "心电图", "tel": "85030" },
+        { "source": "手术&医技", "dept": "心脑电图", "loc": "肺功能室", "tel": "85013" },
+        { "source": "血液&心脏", "dept": "胸外一病区", "loc": "护士台", "tel": "86862" },
+        { "source": "血液&心脏", "dept": "胸外二病区", "loc": "护士台一", "tel": "86851" },
+        { "source": "血液&心脏", "dept": "胸外二病区", "loc": "护士台二", "tel": "86852" },
+        { "source": "血液&心脏", "dept": "胸外三病区", "loc": "护士台一", "tel": "86841" },
+        { "source": "血液&心脏", "dept": "胸外三病区", "loc": "护士台二", "tel": "86842" },
+        { "source": "血液&心脏", "dept": "PICU", "loc": "护士台一", "tel": "82030" },
+        { "source": "血液&心脏", "dept": "心内一病区", "loc": "护士台一", "tel": "85300" },
+        { "source": "血液&心脏", "dept": "心内一病区", "loc": "护士台二", "tel": "85301" },
+        { "source": "血液&心脏", "dept": "心内一病区", "loc": "护士长办公室", "tel": "85306" },
+        { "source": "血液&心脏", "dept": "心内二病区", "loc": "护士台一", "tel": "85500" },
+        { "source": "血液&心脏", "dept": "心内二病区", "loc": "护士台二", "tel": "85501" },
+        { "source": "血液&心脏", "dept": "心内二病区", "loc": "护士长办公室", "tel": "85502" },
+        { "source": "血液&心脏", "dept": "血液一病区", "loc": "护士台一", "tel": "85739" },
+        { "source": "血液&心脏", "dept": "血液四病区（隔离）", "loc": "护士台一", "tel": "82060" },
+        { "source": "血液&心脏", "dept": "血液四病区（隔离）", "loc": "护士台二", "tel": "82061" },
+        { "source": "血液&心脏", "dept": "血液六病区", "loc": "护士台一", "tel": "87511" },
+        { "source": "血液&心脏", "dept": "血液六病区", "loc": "护士台二", "tel": "87538" },
+        { "source": "血液&心脏", "dept": "血液六病区", "loc": "医生办公室", "tel": "87514" },
+        { "source": "血液&心脏", "dept": "血液七病区", "loc": "护士台一", "tel": "87541" },
+        { "source": "血液&心脏", "dept": "血液大楼", "loc": "特需门诊护士台", "tel": "82013" },
+        { "source": "血液&心脏", "dept": "血液大楼", "loc": "普通门诊护士台", "tel": "82012" },
+        { "source": "血液&心脏", "dept": "血液大楼", "loc": "药房", "tel": "82011" },
+        { "source": "血液&心脏", "dept": "血液大楼", "loc": "收费处", "tel": "82010" },
+        { "source": "血液&心脏", "dept": "血液大楼", "loc": "中央静脉穿刺室", "tel": "82155" },
+        { "source": "血液&心脏", "dept": "血液大楼", "loc": "PICC", "tel": "82154" },
+        { "source": "血液&心脏", "dept": "血液大楼", "loc": "观察室护士台", "tel": "82014" },
+        { "source": "病区", "dept": "肾脏/消化/内汾泌病区", "loc": "护士台(文员)", "tel": "87840" },
+        { "source": "病区", "dept": "肾脏/消化/内汾泌病区", "loc": "护士台", "tel": "87841" },
+        { "source": "病区", "dept": "肾脏/消化/内汾泌病区", "loc": "医生工作台", "tel": "87842" },
+        { "source": "病区", "dept": "肾脏/消化/内汾泌病区", "loc": "办公室1", "tel": "87843" },
+        { "source": "病区", "dept": "肾脏/消化/内汾泌病区", "loc": "值班室1", "tel": "87844" },
+        { "source": "病区", "dept": "肾脏/消化/内汾泌病区", "loc": "值班室2", "tel": "87845" },
+        { "source": "病区", "dept": "肾脏/消化/内汾泌病区", "loc": "肾脏主任办公室", "tel": "87846" },
+        { "source": "病区", "dept": "肾脏/消化/内汾泌病区", "loc": "消化主任办公室", "tel": "87847" },
+        { "source": "病区", "dept": "呼吸内科病区", "loc": "护士台(文员)", "tel": "87820" },
+        { "source": "病区", "dept": "呼吸内科病区", "loc": "护士台", "tel": "87821" },
+        { "source": "病区", "dept": "呼吸内科病区", "loc": "医生工作台", "tel": "87822" },
+        { "source": "病区", "dept": "呼吸内科病区", "loc": "主任办公室", "tel": "87823" },
+        { "source": "病区", "dept": "呼吸内科病区", "loc": "会议室", "tel": "87830" },
+        { "source": "病区", "dept": "呼吸内科病区", "loc": "护士长办公室", "tel": "87824" },
+        { "source": "病区", "dept": "呼吸内科病区", "loc": "PSG办公室", "tel": "87825" },
+        { "source": "病区", "dept": "呼吸内科病区", "loc": "主治办公室", "tel": "87826" },
+        { "source": "病区", "dept": "感染/神内病区", "loc": "护士台(文员)", "tel": "87681" },
+        { "source": "病区", "dept": "感染/神内病区", "loc": "护士台", "tel": "87680" },
+        { "source": "病区", "dept": "感染/神内病区", "loc": "医生工作台", "tel": "87682" },
+        { "source": "病区", "dept": "感染/神内病区", "loc": "医生大办公室", "tel": "87690" },
+        { "source": "病区", "dept": "感染/神内病区", "loc": "办公室", "tel": "87685" },
+        { "source": "病区", "dept": "感染/神内病区", "loc": "护士长办公室", "tel": "87687" },
+        { "source": "病区", "dept": "感染/神内病区", "loc": "感染主任办公室", "tel": "87686" },
+        { "source": "病区", "dept": "感染/神内病区", "loc": "神内主任办公室", "tel": "87684" },
+        { "source": "病区", "dept": "特诊部", "loc": "特诊预检台", "tel": "86048" },
+        { "source": "病区", "dept": "特诊部", "loc": "特诊持号收费", "tel": "87914" },
+        { "source": "病区", "dept": "特诊部", "loc": "化验室", "tel": "87915" },
+        { "source": "病区", "dept": "特诊部", "loc": "特诊药房", "tel": "87916" },
+        { "source": "病区", "dept": "特诊部", "loc": "特诊专家吧台", "tel": "83141" },
+        { "source": "病区", "dept": "特诊部", "loc": "特诊普通吧台", "tel": "87900" },
+        { "source": "病区", "dept": "特诊部", "loc": "特诊预约", "tel": "86049" },
+        { "source": "病区", "dept": "普外科病区", "loc": "护士台(文员)", "tel": "87700" },
+        { "source": "病区", "dept": "普外科病区", "loc": "护士台", "tel": "87701" },
+        { "source": "病区", "dept": "普外科病区", "loc": "医生工作台", "tel": "87702" },
+        { "source": "病区", "dept": "普外科病区", "loc": "医生大办公室", "tel": "87703" },
+        { "source": "病区", "dept": "普外科病区", "loc": "主任办公室", "tel": "87705" },
+        { "source": "病区", "dept": "普外科病区", "loc": "护士长办公室", "tel": "87707" },
+        { "source": "病区", "dept": "普外科病区", "loc": "办公室1(副主任)", "tel": "87708" }
+    ];
+
+    // ================= 搜索逻辑 =================
+    const searchAliases = {
+        "影像": "放射 CT 核磁 B超 片子",
+        "拍片": "放射 CT",
+        "化验": "检验 抽血",
+        "抽血": "检验",
+        "开刀": "手术",
+        "挂号": "收费",
+        "结账": "收费",
+        "打针": "输液 注射",
+        "配药": "药房",
+        "取药": "药房",
+        "心脏": "心内 心外",
+        "神经": "神内",
+        "胃": "消化",
+        "肺": "呼吸",
+        "文员": "护士台"
+    };
+
+    // 优化的配色方案 (Tailwind)
+    const categoryStyles = {
+        "行政职能": { 
+            bg: "bg-blue-50", text: "text-blue-700", border: "border-blue-100", 
+            iconBg: "bg-blue-100", icon: "fa-briefcase"
+        },
+        "门急诊": { 
+            bg: "bg-emerald-50", text: "text-emerald-700", border: "border-emerald-100", 
+            iconBg: "bg-emerald-100", icon: "fa-hospital-user"
+        },
+        "手术&医技": { 
+            bg: "bg-violet-50", text: "text-violet-700", border: "border-violet-100", 
+            iconBg: "bg-violet-100", icon: "fa-microscope"
+        },
+        "血液&心脏": { 
+            bg: "bg-rose-50", text: "text-rose-700", border: "border-rose-100", 
+            iconBg: "bg-rose-100", icon: "fa-heart-pulse"
+        },
+        "病区": { 
+            bg: "bg-amber-50", text: "text-amber-700", border: "border-amber-100", 
+            iconBg: "bg-amber-100", icon: "fa-bed-pulse"
+        }
+    };
+
+    // 电话卡片组件 (已去除 href 链接，号码纯文本显示)
+    const PhoneCard = ({ item, isFavorite, onToggleFavorite }) => {
+        const style = categoryStyles[item.source] || { text: "text-gray-600", bg: "bg-gray-50", border: "border-gray-200" };
+
+        return (
+            <div className="bg-white px-4 py-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center group mb-3 active-scale">
+                <div className="flex-1 min-w-0 pr-3">
+                    <h3 className="text-[17px] font-bold text-gray-800 truncate mb-1.5 leading-tight">
+                        <span className="mr-2">{item.dept}</span>
+                        <span className="text-gray-900">{item.loc}</span>
+                    </h3>
+                    
+                    <div className="flex items-center gap-2">
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-medium ${style.bg} ${style.text}`}>
+                            {item.source}
+                        </span>
+                    </div>
+                </div>
+                
+                <div className="flex items-center gap-4 shrink-0">
+                    {/* 号码部分：纯文本显示，去除点击态 */}
+                    <span className="text-xl font-mono font-bold text-blue-600 tracking-wider select-text">
+                        {item.tel}
+                    </span>
+                    
+                    <button 
+                        onClick={(e) => {
+                            e.preventDefault();
+                            onToggleFavorite(item);
+                        }}
+                        className={`w-9 h-9 flex items-center justify-center rounded-full transition-all active:scale-90 ${isFavorite ? 'text-yellow-400 bg-yellow-50' : 'text-gray-300 hover:bg-gray-50 hover:text-yellow-400'}`}
+                    >
+                        <i className={`${isFavorite ? 'fa-solid' : 'fa-regular'} fa-star text-lg`}></i>
+                    </button>
+                </div>
+            </div>
+        );
+    };
+
+    const PhoneBook = () => {
+        const [searchTerm, setSearchTerm] = React.useState("");
+        const [results, setResults] = React.useState(phoneData);
+        const [favorites, setFavorites] = React.useState([]);
+        const [showFavorites, setShowFavorites] = React.useState(false);
+        const [selectedSource, setSelectedSource] = React.useState(null);
+        const [selectedDept, setSelectedDept] = React.useState(null);
+
+        React.useEffect(() => {
+            const saved = localStorage.getItem('pediatrics_phone_favorites');
+            if (saved) {
+                try { setFavorites(JSON.parse(saved)); } catch (e) {}
+            }
+        }, []);
+
+        const toggleFavorite = (item) => {
+            let newFavs;
+            const exists = favorites.some(f => f.tel === item.tel && f.loc === item.loc && f.dept === item.dept);
+            if (exists) {
+                newFavs = favorites.filter(f => !(f.tel === item.tel && f.loc === item.loc && f.dept === item.dept));
+            } else {
+                newFavs = [...favorites, item];
+            }
+            setFavorites(newFavs);
+            localStorage.setItem('pediatrics_phone_favorites', JSON.stringify(newFavs));
+        };
+
+        const sources = React.useMemo(() => [...new Set(phoneData.map(d => d.source))], []);
+        
+        const departments = React.useMemo(() => {
+            if (!selectedSource) return [];
+            return [...new Set(phoneData.filter(d => d.source === selectedSource).map(d => d.dept))];
+        }, [selectedSource]);
+
+        const browseResults = React.useMemo(() => {
+            if (!selectedSource || !selectedDept) return [];
+            return phoneData.filter(d => d.source === selectedSource && d.dept === selectedDept);
+        }, [selectedSource, selectedDept]);
+
+        React.useEffect(() => {
+            if (!searchTerm.trim()) {
+                setResults(phoneData); 
+                return;
+            }
+            const lowerTerm = searchTerm.toLowerCase();
+            let expandedTerms = [lowerTerm];
+            Object.keys(searchAliases).forEach(key => {
+                if (lowerTerm.includes(key)) {
+                    expandedTerms = [...expandedTerms, ...searchAliases[key].split(" ")];
+                }
+            });
+            const filtered = phoneData.filter(item => {
+                const itemStr = `${item.source} ${item.dept} ${item.loc} ${item.tel}`.toLowerCase();
+                return expandedTerms.some(term => itemStr.includes(term));
+            });
+            setResults(filtered);
+        }, [searchTerm]);
+
+        const goBack = () => {
+            if (showFavorites) setShowFavorites(false);
+            else if (selectedDept) setSelectedDept(null);
+            else if (selectedSource) setSelectedSource(null);
+        };
+
+        const resetAll = () => {
+            setSelectedSource(null); 
+            setSelectedDept(null); 
+            setShowFavorites(false); 
+            setSearchTerm('');
+        };
+
+        const renderList = (list) => (
+            <div className="animate-slide-up pb-10">
+                {list.map((item, index) => {
+                    const isFav = favorites.some(f => f.tel === item.tel && f.loc === item.loc && f.dept === item.dept);
+                    return (
+                        <PhoneCard 
+                            key={`${item.tel}-${index}`} 
+                            item={item} 
+                            isFavorite={isFav}
+                            onToggleFavorite={toggleFavorite}
+                        />
+                    );
+                })}
+            </div>
+        );
+
+        return (
+            <div className="max-w-md mx-auto min-h-screen bg-[#f8fafc] sm:border-x sm:border-gray-200">
+                {/* 顶部搜索区 */}
+                <div className="glass-header px-5 pt-3 pb-3">
+                    <div className="flex items-center justify-between mb-4 mt-2">
+                        <h1 className="text-xl font-bold text-gray-800 flex items-center gap-2 cursor-pointer select-none" onClick={resetAll}>
+                            <div className="w-9 h-9 rounded-xl bg-blue-600 shadow-blue-200 shadow-lg flex items-center justify-center text-white text-sm">
+                                <i className="fa-solid fa-phone"></i>
+                            </div>
+                            <span>电话查询</span>
+                        </h1>
+                    </div>
+
+                    <div className="relative group">
+                        <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 group-focus-within:text-blue-500 transition-colors"></i>
+                        <input
+                            type="text"
+                            placeholder="搜科室、位置 (如: CT、8701)"
+                            className="w-full pl-10 pr-10 py-3 rounded-2xl bg-gray-100 border-none focus:ring-2 focus:ring-blue-100 focus:bg-white text-gray-800 placeholder-gray-400 transition-all text-[15px] shadow-inner"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onFocus={() => { if(showFavorites) setShowFavorites(false); }}
+                        />
+                        {searchTerm && (
+                            <button 
+                                onClick={() => setSearchTerm('')}
+                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 bg-gray-200 rounded-full w-5 h-5 flex items-center justify-center text-[10px]"
+                            >
+                                <i className="fa-solid fa-xmark"></i>
+                            </button>
+                        )}
+                    </div>
+                </div>
+
+                <div className="px-5 pt-5 safe-bottom">
+                    {/* 搜索结果 */}
+                    {searchTerm ? (
+                        <div>
+                             <div className="text-xs font-bold text-gray-400 mb-3 uppercase tracking-wider">
+                                搜索结果 ({results.length})
+                            </div>
+                            {results.length > 0 ? renderList(results) : (
+                                <div className="text-center py-16">
+                                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 text-gray-300 text-2xl">
+                                        <i className="fa-solid fa-magnifying-glass"></i>
+                                    </div>
+                                    <p className="text-gray-400 font-medium">没有找到相关号码</p>
+                                    <p className="text-xs text-gray-300 mt-1">试试输入关键词，如“打针”</p>
+                                </div>
+                            )}
+                        </div>
+                    ) : showFavorites ? (
+                        // 常用电话
+                        <div className="animate-fade-in">
+                             <button onClick={goBack} className="text-[15px] font-medium text-gray-500 mb-4 flex items-center hover:text-gray-900 transition-colors px-1 py-1">
+                                <i className="fa-solid fa-arrow-left mr-2 text-sm"></i> 返回
+                            </button>
+                            <h2 className="text-xl font-bold text-gray-900 mb-5 flex items-center gap-2">
+                                <span className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-500 text-sm"><i className="fa-solid fa-star"></i></span>
+                                常用电话
+                            </h2>
+                            {favorites.length === 0 ? (
+                                <div className="text-center py-16 bg-white rounded-2xl border border-dashed border-gray-200">
+                                    <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3 text-gray-300">
+                                        <i className="fa-regular fa-star text-xl"></i>
+                                    </div>
+                                    <p className="text-gray-500 font-medium">暂无收藏</p>
+                                    <p className="text-xs text-gray-400 mt-2">点击列表中的星号添加</p>
+                                </div>
+                            ) : renderList(favorites)}
+                        </div>
+                    ) : (
+                        // 分类导航
+                        <div className="animate-fade-in pb-10">
+                            
+                            {!selectedSource && (
+                                <div>
+                                    {/* 常用电话入口 */}
+                                    <button 
+                                        onClick={() => setShowFavorites(true)}
+                                        className="w-full bg-white border border-gray-100 p-4 rounded-2xl flex items-center justify-between mb-6 shadow-sm active:scale-[0.98] transition-all group hover:shadow-md"
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 rounded-full bg-gradient-to-tr from-yellow-100 to-orange-50 text-orange-500 flex items-center justify-center shadow-sm">
+                                                <i className="fa-solid fa-star text-lg"></i>
+                                            </div>
+                                            <div className="text-left">
+                                                <div className="font-bold text-gray-800 text-lg">我的常用</div>
+                                                <div className="text-xs text-gray-400 font-medium mt-0.5">{favorites.length || 0} 个已保存号码</div>
+                                            </div>
+                                        </div>
+                                        <div className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 group-hover:bg-blue-50 group-hover:text-blue-500 transition-colors">
+                                            <i className="fa-solid fa-chevron-right text-xs"></i>
+                                        </div>
+                                    </button>
+
+                                    <div className="flex items-center justify-between mb-3 px-1">
+                                        <div className="text-xs font-bold text-gray-400 uppercase tracking-wider">部门导航</div>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {sources.map(source => {
+                                            const style = categoryStyles[source] || {};
+                                            return (
+                                                <button 
+                                                    key={source}
+                                                    onClick={() => setSelectedSource(source)}
+                                                    className={`p-4 rounded-2xl text-left transition-all active:scale-[0.96] flex flex-col justify-between h-28 border ${style.bg} ${style.border} relative overflow-hidden group`}
+                                                >
+                                                    <div className={`w-10 h-10 rounded-full ${style.iconBg} ${style.text} flex items-center justify-center mb-2 shadow-sm`}>
+                                                        <i className={`fa-solid ${style.icon} text-lg`}></i>
+                                                    </div>
+                                                    <div>
+                                                        <span className={`font-bold text-[17px] text-gray-800 block leading-tight`}>{source}</span>
+                                                    </div>
+                                                    {/* 装饰圆圈 */}
+                                                    <div className={`absolute -right-4 -bottom-4 w-16 h-16 rounded-full ${style.iconBg} opacity-20 group-hover:scale-150 transition-transform duration-500`}></div>
+                                                </button>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* 二级部门选择 */}
+                            {selectedSource && !selectedDept && (
+                                <div>
+                                    <button onClick={goBack} className="text-[15px] font-medium text-gray-500 mb-4 flex items-center hover:text-gray-900 transition-colors px-1 py-1">
+                                        <i className="fa-solid fa-arrow-left mr-2 text-sm"></i> 返回
+                                    </button>
+                                    
+                                    <h2 className="text-2xl font-bold text-gray-900 mb-5 px-1 flex items-center gap-2">
+                                        <span className={`w-2 h-8 rounded-full ${categoryStyles[selectedSource]?.bg.replace('bg-', 'bg-') || 'bg-gray-200'}`}></span>
+                                        {selectedSource}
+                                    </h2>
+                                    
+                                    <div className="grid grid-cols-2 gap-3">
+                                        {departments.map(dept => (
+                                            <button 
+                                                key={dept}
+                                                onClick={() => setSelectedDept(dept)}
+                                                className="bg-white px-4 py-4 rounded-xl border border-gray-100 text-left font-bold text-gray-700 shadow-sm active:scale-[0.98] active:bg-gray-50 transition-all flex items-center justify-between group"
+                                            >
+                                                <span className="truncate">{dept}</span>
+                                                <i className="fa-solid fa-chevron-right text-xs text-gray-300 group-hover:text-blue-400"></i>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* 电话列表 */}
+                            {selectedSource && selectedDept && (
+                                <div>
+                                    <button onClick={goBack} className="text-[15px] font-medium text-gray-500 mb-4 flex items-center hover:text-gray-900 transition-colors px-1 py-1">
+                                        <i className="fa-solid fa-arrow-left mr-2 text-sm"></i> 返回 {selectedSource}
+                                    </button>
+                                    
+                                    <div className="mb-5 px-1">
+                                        <h2 className="text-2xl font-bold text-gray-900">{selectedDept}</h2>
+                                        <p className="text-sm text-gray-400 font-medium mt-1">电话列表</p>
+                                    </div>
+                                    
+                                    {renderList(browseResults)}
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
+    // 注册 Service Worker
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(registration => {
+                    console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                }, err => {
+                    console.log('ServiceWorker registration failed: ', err);
+                });
+        });
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<PhoneBook />);
+</script>
+
+</body>
+</html>
